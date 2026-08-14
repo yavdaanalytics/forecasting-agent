@@ -2,7 +2,7 @@
 
 **Autonomous demand forecasting with multi-method ensemble, volatility segmentation, and client-facing recommendations.**
 
-An intelligent agent that orchestrates end-to-end time-series forecasting workflows: from product segmentation via coefficient of variation (CV), through multi-method forecast testing (Prophet, Baseline, Ensemble), to accuracy validation and actionable client recommendations.
+An intelligent agent that orchestrates end-to-end time-series forecasting workflows: from product segmentation via coefficient of variation (CV) and changepoints, through Prophet and Prophet+ETS testing, to holdout WAPE and client recommendations.
 
 ## Vision
 
@@ -14,8 +14,9 @@ Today's forecasting is manual and siloed:
 
 **Forecasting Agent** changes this:
 - ✅ Automatically segments products by volatility (CV analysis)
-- ✅ Tests Prophet, Baseline, Ensemble in parallel for each segment
-- ✅ Validates accuracy (WAPE) and flags underperformers
+- ✅ Diagnoses each SKU (CV, changepoints, zeros, history length, recent level shifts)
+- ✅ Routes a candidate set (not always every model), scores holdout WAPE, then picks a method or a CV prior
+- ✅ Validates accuracy (WAPE) and flags SKUs for review when error is high
 - ✅ Recommends optimal forecast method + horizon per segment
 - ✅ Generates client reports with confidence intervals and category groupings
 - ✅ Re-forecasts adaptively based on accuracy thresholds
@@ -25,13 +26,17 @@ Today's forecasting is manual and siloed:
 ### 1. Volatility Segmentation
 Groups products by Coefficient of Variation (CV = STDDEV/AVG):
 - **Stable** (CV < 1.0): Conservative Prophet config, shorter forecast horizon
-- **Volatile** (CV ≥ 1.0): Flexible Prophet config, ensemble methods preferred
+- **Volatile** (CV ≥ 1.0): More flexible Prophet config, ensemble weights lean toward ETS
 
 ### 2. Multi-Method Testing
-Tests in parallel for each segment:
-- **Prophet** (time-series with changepoint detection)
-- **Baseline** (simple moving average)
-- **Ensemble** (weighted blend: 50% Prophet + 50% Baseline)
+Catalog:
+- **Prophet**
+- **Baseline** (30-day moving average)
+- **Ensemble MA** (Prophet + baseline)
+- **ETS** (Holt-Winters)
+- **Ensemble ETS** (Prophet + ETS)
+
+The agent **diagnoses** the series first (short history, intermittent zeros, structural break, or regular stable/volatile). Hard regimes get a small robust set; regular series get the full catalog. CV and changepoints **tune** Prophet/ensemble knobs and act as a **prior** when holdout WAPEs are close, missing, or too high (escalate for review).
 
 ### 3. Accuracy Validation
 Holdout-based backtesting:
@@ -50,14 +55,12 @@ Actionable insights:
 ## Quick Start
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
+python -m venv .venv
+.venv\Scripts\activate          # Windows
+pip install -e ".[dev]"
 
-# Run end-to-end pipeline
-python src/agent/run_forecast_pipeline.py --brand TAOS --mode full
-
-# Generate client report
-python src/reporting/generate_client_report.py --brand DAWBU
+python -m forecasting_agent --input examples/sample_taos_input.csv --brand TAOS
+pytest
 ```
 
 ## Architecture
@@ -69,7 +72,7 @@ python src/reporting/generate_client_report.py --brand DAWBU
    ↓
 2. SEGMENT      → Compute CV per SKU → Stable | Volatile
    ↓
-3. TEST         → Run Prophet/Baseline/Ensemble per segment (parallel)
+3. TEST         → Fit Prophet and Prophet+ETS (CV + changepoints tune)
    ↓
 4. VALIDATE     → Holdout backtest → WAPE scores
    ↓
@@ -87,7 +90,7 @@ BigQuery (raw sales)
     ↓
 Agent Orchestrator (LangGraph)
     ├─→ Segmentation Workflow (CV analysis)
-    ├─→ Forecasting Workflow (Prophet/Baseline/Ensemble)
+    ├─→ Forecasting Workflow (Prophet / Prophet+ETS)
     ├─→ Validation Workflow (WAPE, accuracy tracking)
     └─→ Recommendations Workflow (client insights)
     ↓
@@ -131,41 +134,23 @@ Forecast accuracy drops on Product X:
 
 ```
 forecasting-agent/
-├── README.md                    # Overview & quick start
-├── ARCHITECTURE.md              # Technical design & components
-├── PLAN.md                      # Implementation roadmap
-├── IDEAS.md                     # Research & conceptual depth
-├── requirements.txt             # Dependencies
-├── src/
-│   ├── agent/
-│   │   ├── __init__.py
-│   │   ├── orchestrator.py      # LangGraph agent
-│   │   ├── run_forecast_pipeline.py
-│   │   └── workflows/
-│   │       ├── segmentation.py      # CV analysis
-│   │       ├── forecasting.py       # Prophet/Baseline/Ensemble
-│   │       ├── validation.py        # WAPE, backtesting
-│   │       └── recommendations.py   # Client insights
-│   ├── models/
-│   │   ├── prophet_wrapper.py
-│   │   ├── baseline_wrapper.py
-│   │   └── ensemble_wrapper.py
-│   ├── connectors/
-│   │   └── bigquery.py          # BQ integration
-│   └── reporting/
-│       ├── accuracy_report.py
-│       └── client_recommendations.py
+├── pyproject.toml
+├── src/forecasting_agent/
+│   ├── domain/           # SalesSeries, results (no I/O)
+│   ├── metrics/          # CV, WAPE, changepoints
+│   ├── config/           # brand / segment knobs
+│   ├── connectors/       # SalesStore: CSV, memory, BigQuery stub
+│   ├── methods/          # ForecastMethod: prophet, ets, ensemble
+│   ├── segmentation/
+│   ├── forecasting/      # parallel/sync runner over methods
+│   ├── validation/
+│   ├── recommendations/
+│   ├── reporting/
+│   ├── orchestration/    # ForecastPipeline + optional LangGraph
+│   └── cli.py
 ├── tests/
-│   ├── test_segmentation.py
-│   ├── test_forecasting.py
-│   └── test_validation.py
 ├── examples/
-│   ├── sample_taos_input.csv
-│   ├── sample_output.json
-│   └── sample_client_report.md
-└── .github/
-    └── workflows/
-        └── forecast_weekly.yml  # GitHub Actions
+└── .github/workflows/test.yml
 ```
 
 ## Integration
@@ -178,12 +163,12 @@ forecasting-agent/
 
 ## Status
 
-**Phase**: MVP Planning (Aug 2026)
+**Phase**: Phase 1 implementation (Aug 2026)
 - [x] Vision & requirements defined
 - [x] Architecture sketched
-- [ ] Phase 1: Core implementation (CV + multi-method testing)
-- [ ] Phase 2: Validation & accuracy reporting
-- [ ] Phase 3: Client recommendations & re-forecasting
+- [x] Phase 1: Core implementation (CV + multi-method testing)
+- [x] Phase 2 core: holdout WAPE + accuracy JSON
+- [ ] Phase 3: Client HTML/PDF reports & re-forecasting
 - [ ] Phase 4: Deployment & monitoring
 
 ## Next Steps

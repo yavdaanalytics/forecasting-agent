@@ -1,0 +1,64 @@
+{
+  "brand": "TAOS",
+  "segments": {
+    "stable": {
+      "skus": [
+        "PLANT-001",
+        "PLANT-002",
+        "SEED-101"
+      ],
+      "count": 3,
+      "avg_cv": 0.0837813975848219,
+      "config": {
+        "changepoint_prior_scale": 0.05,
+        "horizon": 60
+      }
+    },
+    "volatile": {
+      "skus": [
+        "PLANT-301",
+        "PLANT-302",
+        "SOIL-201"
+      ],
+      "count": 3,
+      "avg_cv": 2.2833818919057545,
+      "config": {
+        "changepoint_prior_scale": 0.5,
+        "horizon": 60
+      }
+    }
+  },
+  "accuracy": {
+    "stable": {
+      "baseline_wape": 0.06870669152352418,
+      "ensemble_wape": 0.06893666304301133,
+      "prophet_wape": 0.06982343587640831,
+      "recommended_method": "baseline"
+    },
+    "volatile": {
+      "baseline_wape": 5.642102181232616,
+      "ensemble_wape": 5.679877516286973,
+      "prophet_wape": 5.774783249771289,
+      "recommended_method": "baseline"
+    }
+  },
+  "recommendations": {
+    "stable": {
+      "segment": "stable",
+      "method": "baseline",
+      "wape": 0.0687,
+      "horizon_days": 60,
+      "confidence": "high",
+      "num_skus": 3
+    },
+    "volatile": {
+      "segment": "volatile",
+      "method": "baseline",
+      "wape": 5.6421,
+      "horizon_days": 60,
+      "confidence": "low",
+      "num_skus": 3
+    }
+  },
+  "forecast_count": 18
+}
