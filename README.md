@@ -45,7 +45,10 @@ Holdout-based backtesting:
 - Compare to actuals → compute WAPE
 - Track which method wins per segment
 
-### 4. Client Recommendations
+### 4. Safety stock from forecast error
+After a method is chosen, the agent **backfills** rolling-origin forecasts vs actuals over lead time (TAOS 21 days, DAWBU 42). Safety stock is \(z \sigma_e + \max(0, \text{bias})\), not raw demand CV. It skips auto-SS (escalate) for intermittent, structural break, short history, or high-WAPE reviews. JSON also includes 90/95/99% service-level units.
+
+### 5. Client Recommendations
 Actionable insights:
 - "Segment A (15 SKUs) should use **Ensemble** (42% WAPE)"
 - "Segment B (8 SKUs) wins with **Prophet** (28% WAPE)"
@@ -76,11 +79,11 @@ pytest
    ↓
 4. VALIDATE     → Holdout backtest → WAPE scores
    ↓
-5. RECOMMEND    → Pick best method per segment + suggest groupings
+5. RECOMMEND    → Pick method (WAPE or CV prior)
    ↓
-6. DEPLOY       → Run production forecast with tuned config
+6. SAFETY STOCK → Rolling-origin forecast error → z·σ (+ bias)
    ↓
-7. REPORT       → Generate client-facing document
+7. REPORT       → JSON summary (accuracy, decisions, safety stock)
 ```
 
 **Data Flow:**
@@ -143,6 +146,7 @@ forecasting-agent/
 │   ├── methods/          # ForecastMethod: prophet, ets, ensemble
 │   ├── segmentation/
 │   ├── forecasting/      # parallel/sync runner over methods
+│   ├── inventory/        # rolling-origin safety stock from forecast error
 │   ├── validation/
 │   ├── recommendations/
 │   ├── reporting/
