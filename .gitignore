@@ -20,3 +20,5 @@ data/lancedb/
 data/*.db
 *.log
 .DS_Store
+/data/
+/local_cache/
