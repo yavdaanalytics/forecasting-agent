@@ -5,6 +5,7 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING, Literal, Mapping, Sequence
 
 if TYPE_CHECKING:
+    from forecasting_agent.domain.inventory import SafetyStockResult
     from forecasting_agent.domain.policy import MethodDecision, SeriesDiagnosis
 
 import numpy as np
@@ -141,3 +142,4 @@ class PipelineResult:
     recommendations: Mapping[str, Mapping[str, str | float | int | bool]]
     diagnoses: Mapping[str, SeriesDiagnosis] = field(default_factory=dict)
     decisions: tuple[MethodDecision, ...] = ()
+    safety_stock: tuple[SafetyStockResult, ...] = ()

@@ -16,6 +16,7 @@ from forecasting_agent.domain.types import (
 from forecasting_agent.forecasting.runner import forecast_series_sync
 from forecasting_agent.methods.factory import build_methods
 from forecasting_agent.methods.protocol import ForecastMethod
+from forecasting_agent.inventory.compute import compute_safety_stock
 from forecasting_agent.policy.candidates import candidate_names, filter_catalog
 from forecasting_agent.policy.diagnose import diagnose
 from forecasting_agent.policy.select import select_method
@@ -86,6 +87,27 @@ class ForecastPipeline:
                 num_skus=summary.count,
             )
 
+        by_name = {m.name: m for m in self.methods}
+        safety = []
+        if self.validate:
+            for assignment in assignments:
+                series = by_sku[assignment.sku]
+                diag = diagnoses[series.sku]
+                decision = next(d for d in decisions if d.sku == series.sku)
+                cfg = tune_segment_config(
+                    self.brand, assignment.segment, assignment.changepoints_per_year
+                )
+                safety.append(
+                    compute_safety_stock(
+                        series,
+                        diag,
+                        decision,
+                        by_name.get(decision.method),
+                        self.brand,
+                        cfg,
+                    )
+                )
+
         return PipelineResult(
             brand=self.brand.name,
             assignments=tuple(assignments),
@@ -95,6 +117,7 @@ class ForecastPipeline:
             recommendations=recommendations,
             diagnoses=diagnoses,
             decisions=tuple(decisions),
+            safety_stock=tuple(safety),
         )
 
     def _score_sku(self, series: SalesSeries, methods: list[ForecastMethod], cfg) -> dict[str, float | None]:

@@ -47,6 +47,11 @@ class BrandConfig:
     volatile: SegmentConfig
     holdout_days: int = DEFAULT_HOLDOUT_DAYS
     baseline_window: int = DEFAULT_BASELINE_WINDOW
+    lead_time_days: int = 21
+    review_period_days: int = 7
+    service_level: float = 0.95
+    backfill_stride: int = 7
+    backfill_max_origins: int = 6
 
 
 _BRANDS: dict[str, BrandConfig] = {
@@ -59,6 +64,7 @@ _BRANDS: dict[str, BrandConfig] = {
         name="DAWBU",
         stable=replace(STABLE_DEFAULT, horizon=90),
         volatile=replace(VOLATILE_DEFAULT, changepoint_prior_scale=0.3, horizon=90),
+        lead_time_days=42,
     ),
 }
 

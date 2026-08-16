@@ -41,4 +41,5 @@ def pipeline_as_dict(result: PipelineResult) -> dict:
             }
             for sku, diag in result.diagnoses.items()
         },
+        "safety_stock": [s.to_dict() for s in result.safety_stock],
     }
