@@ -32,6 +32,8 @@ def test_pipeline_segments_and_forecasts(stable_series, volatile_series):
     assert "stable" in payload["recommendations"]
     rec_method = payload["recommendations"]["stable"]["method"]
     assert rec_method in {"prophet", "baseline", "ensemble_ma", "ets", "ensemble_ets"}
+    assert "safety_stock" in payload
+    assert len(payload["safety_stock"]) == 2
     stable_diag = result.diagnoses["PLANT-001"]
     assert stable_diag.regime in {"stable", "structural_break"}
     vol_diag = result.diagnoses["PLANT-301"]
@@ -53,3 +55,6 @@ def test_short_history_only_cheap_methods():
     used = {f.method for f in result.forecasts}
     assert used <= {"baseline", "ets"}
     assert result.diagnoses["SHORT"].regime == "short_history"
+    ss = next(s for s in result.safety_stock if s.sku == "SHORT")
+    assert ss.escalate is True
+    assert ss.reason.startswith("skip_")
