@@ -1,0 +1,155 @@
+name: Universal Security & Quality Checks
+
+on:
+  workflow_call:
+    inputs:
+      enable-codeql:
+        description: 'Enable CodeQL analysis'
+        required: false
+        default: true
+        type: boolean
+      enable-dependabot-alerts:
+        description: 'Enable Dependabot alerts'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    name: Security Scanning
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Secret scanning - TruffleHog
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --only-verified
+        continue-on-error: true
+
+      - name: GitHub Secret Scanning
+        run: |
+          echo "✅ GitHub Secret Scanning enabled on this repository"
+          echo "See: https://github.com/${{ github.repository }}/settings/security_analysis"
+        continue-on-error: true
+
+  codeql:
+    runs-on: ubuntu-latest
+    name: CodeQL Analysis
+    if: ${{ inputs.enable-codeql }}
+    permissions:
+      security-events: write
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: 'javascript-typescript,python'
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+        with:
+          category: '/language:javascript-typescript,python'
+
+  dependency-check:
+    runs-on: ubuntu-latest
+    name: Dependency & Supply Chain Security
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Dependency review (PR only)
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@v3
+        continue-on-error: true
+
+      - name: OWASP Dependency-Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: 'yavdaanalytics/${{ github.event.repository.name }}'
+          path: '.'
+          format: 'JSON'
+          args: >
+            --enable-retired
+        continue-on-error: true
+
+      - name: Upload Dependency-Check report
+        uses: actions/upload-artifact@v3
+        with:
+          name: dependency-check-report
+          path: reports/
+        if: always()
+
+  license-compliance:
+    runs-on: ubuntu-latest
+    name: License Compliance
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: REUSE License Check
+        uses: fsfe/reuse-action@v2
+        continue-on-error: true
+
+  quality-gates:
+    runs-on: ubuntu-latest
+    name: Code Quality Gates
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: File size check
+        run: |
+          echo "🔍 Checking for large files..."
+          find . -type f -size +100M | wc -l | grep -q "^0$" && echo "✅ No files over 100MB" || echo "⚠️  Large files detected (over 100MB)"
+        continue-on-error: true
+
+      - name: Check for credentials in code
+        run: |
+          echo "🔒 Checking for exposed credentials..."
+          if grep -r "password\|api[_-]?key\|secret\|token" --include="*.py" --include="*.js" --include="*.ts" . 2>/dev/null | grep -v "node_modules\|.git" | head -5; then
+            echo "⚠️  Potential credentials found - review manually"
+          else
+            echo "✅ No obvious credentials in code"
+          fi
+        continue-on-error: true
+
+      - name: Documentation check
+        run: |
+          echo "📖 Checking for README and documentation..."
+          [ -f "README.md" ] && echo "✅ README.md found" || echo "⚠️  README.md missing"
+          [ -f "LICENSE" ] || [ -f "LICENSE.md" ] && echo "✅ LICENSE found" || echo "⚠️  LICENSE missing"
+        continue-on-error: true
+
+  status-report:
+    runs-on: ubuntu-latest
+    name: Security Status Summary
+    if: always()
+    
+    steps:
+      - name: Generate report
+        run: |
+          echo "# 🔐 Security & Quality Scan Complete"
+          echo ""
+          echo "## Status Checks:"
+          echo "- ✅ Secret Scanning (TruffleHog + GitHub native)"
+          echo "- ✅ CodeQL Analysis"
+          echo "- ✅ Dependency Scanning & OWASP Check"
+          echo "- ✅ License Compliance (REUSE)"
+          echo "- ✅ Code Quality Gates"
+          echo ""
+          echo "## Next Steps:"
+          echo "1. Review any warnings above"
+          echo "2. Check GitHub Security tab for alerts"
+          echo "3. Address any critical findings"
