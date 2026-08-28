@@ -13,13 +13,13 @@ on:
 jobs:
   # Universal security checks for ALL repos
   security:
-    uses: yavdatech/mcp/.github/workflows/universal-security.yml@main
+    uses: ./.github/workflows/universal-security.yml
     secrets: inherit
 
   # Python CI - Only if repo has Python code
   python-ci:
     if: contains(fromJSON('["python", "jupyter"]'), github.event.repository.topics)
-    uses: yavdatech/mcp/.github/workflows/python-ci.yml@main
+    uses: ./.github/workflows/python-ci.yml
     with:
       python-version: '3.11'
     secrets: inherit
@@ -27,7 +27,7 @@ jobs:
   # TypeScript/JavaScript CI - Only if repo has TS/JS code
   typescript-javascript-ci:
     if: contains(fromJSON('["typescript", "javascript", "nodejs"]'), github.event.repository.topics)
-    uses: yavdatech/mcp/.github/workflows/typescript-javascript-ci.yml@main
+    uses: ./.github/workflows/typescript-javascript-ci.yml
     with:
       node-version: '20'
     secrets: inherit
