@@ -1,0 +1,33 @@
+name: Org-Wide CI/CD
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  # Universal security checks for ALL repos
+  security:
+    uses: yavdatech/mcp/.github/workflows/universal-security.yml@main
+    secrets: inherit
+
+  # Python CI - Only if repo has Python code
+  python-ci:
+    if: contains(fromJSON('["python", "jupyter"]'), github.event.repository.topics)
+    uses: yavdatech/mcp/.github/workflows/python-ci.yml@main
+    with:
+      python-version: '3.11'
+    secrets: inherit
+
+  # TypeScript/JavaScript CI - Only if repo has TS/JS code
+  typescript-javascript-ci:
+    if: contains(fromJSON('["typescript", "javascript", "nodejs"]'), github.event.repository.topics)
+    uses: yavdatech/mcp/.github/workflows/typescript-javascript-ci.yml@main
+    with:
+      node-version: '20'
+    secrets: inherit
