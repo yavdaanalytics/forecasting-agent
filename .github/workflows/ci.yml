@@ -1,4 +1,4 @@
-name: Org-Wide CI/CD
+name: Org-Wide CI/CD - Python
 
 on:
   push:
@@ -11,23 +11,14 @@ on:
       - master
 
 jobs:
-  # Universal security checks for ALL repos
+  # Universal security checks
   security:
     uses: ./.github/workflows/universal-security.yml
     secrets: inherit
 
-  # Python CI - Only if repo has Python code
+  # Python CI - for Python/Jupyter repositories
   python-ci:
-    if: contains(fromJSON('["python", "jupyter"]'), github.event.repository.topics)
     uses: ./.github/workflows/python-ci.yml
     with:
       python-version: '3.11'
-    secrets: inherit
-
-  # TypeScript/JavaScript CI - Only if repo has TS/JS code
-  typescript-javascript-ci:
-    if: contains(fromJSON('["typescript", "javascript", "nodejs"]'), github.event.repository.topics)
-    uses: ./.github/workflows/typescript-javascript-ci.yml
-    with:
-      node-version: '20'
     secrets: inherit
